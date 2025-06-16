@@ -1,0 +1,19 @@
+[project]
+name = "isaac-sim-environment"
+version = "0.1.0"
+description = "An Isaac Sim environment with the Franka Emika Panda."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "isaacsim>=4.5.0.0",
+    "numpy==1.24.4",
+    "pillow>=11.2.1",
+]
+
+[tool.uv.sources]
+isaacsim = { index = "nvidia" }
+
+[[tool.uv.index]]
+name = "nvidia"
+url = "https://pypi.nvidia.com"
+default = false
