@@ -75,12 +75,18 @@ def run_franka_control():
     for i in range(10):
         simulation_app.update()
         time.sleep(0.1)
-      # Access the robot as an articulation
+    
+    # Access the robot as an articulation
     log("Accessing the robot as an articulation...")
     
-    # Import the articulation module - use the proper API for Isaac Sim 4.5.0
+    # Try both modern and deprecated APIs
+    robot = None
+    joint_positions = None
+    
+    # First try the modern Isaac Sim 4.5.0 API
     try:
         # Modern approach for Isaac Sim 4.5+
+        log("Trying modern isaacsim.core.prims.SingleArticulation API...")
         from isaacsim.core.prims import SingleArticulation
         
         # Create articulation from existing prim
@@ -92,7 +98,7 @@ def run_franka_control():
         
         # Initialize the robot
         robot.initialize()
-        log("Successfully initialized the robot articulation")
+        log("Successfully initialized the robot using modern articulation API")
         
         # Get joint information
         dof_names = robot.dof_names
@@ -104,6 +110,43 @@ def run_franka_control():
         joint_positions = robot.get_joint_positions()
         log(f"Initial joint positions: {joint_positions}")
         
+    except Exception as e:
+        log(f"Could not initialize robot with modern API: {e}")
+        log("Trying with deprecated API as fallback...")
+        
+        try:
+            # Fallback to deprecated API
+            log("Trying deprecated omni.isaac.core.articulations.Articulation API...")
+            from omni.isaac.core.articulations import Articulation
+            
+            # Create articulation from existing prim
+            robot = Articulation(prim_path=ROBOT_PRIM_PATH, name="franka")
+            
+            # Update app to ensure articulation is registered
+            simulation_app.update()
+            time.sleep(0.2)
+            
+            # Initialize the robot
+            robot.initialize()
+            log("Successfully initialized the robot using deprecated articulation API")
+            
+            # Get joint information
+            dof_names = robot.dof_names
+            dof_count = robot.num_dof
+            log(f"Robot has {dof_count} degrees of freedom")
+            log(f"Joint names: {dof_names}")
+            
+            # Get current joint positions
+            joint_positions = robot.get_joint_positions()
+            log(f"Initial joint positions: {joint_positions}")
+            
+        except Exception as e2:
+            log(f"Could not initialize robot articulation with either API: {e2}")
+            import traceback
+            traceback.print_exc()
+    
+    # If we successfully initialized the robot and got joint positions
+    if robot is not None and joint_positions is not None:
         # Define different motion patterns
         patterns = {
             "wave": lambda t, jp: jp.copy() + np.array([0.5 * np.sin(t), 0, 0, 0, 0, 0, 0, 0, 0]),
@@ -176,50 +219,16 @@ def run_franka_control():
         except Exception as e:
             log(f"Error during joint control: {e}")
             import traceback
-            traceback.print_exc()    except Exception as e:
-        log(f"Could not initialize robot with modern API: {e}")
-        log("Trying with deprecated API as fallback...")
-        
-        try:
-            # Fallback to deprecated API
-            from omni.isaac.core.articulations import Articulation
-            
-            # Create articulation from existing prim
-            robot = Articulation(prim_path=ROBOT_PRIM_PATH, name="franka")
-            
-            # Update app to ensure articulation is registered
-            simulation_app.update()
-            time.sleep(0.2)
-            
-            # Initialize the robot
-            robot.initialize()
-            log("Successfully initialized the robot using deprecated articulation API")
-            
-            # Get joint information
-            dof_names = robot.dof_names
-            dof_count = robot.num_dof
-            log(f"Robot has {dof_count} degrees of freedom")
-            log(f"Joint names: {dof_names}")
-            
-            # Get current joint positions
-            joint_positions = robot.get_joint_positions()
-            log(f"Initial joint positions: {joint_positions}")
-            
-            # Continue with the motion patterns...
-            
-        except Exception as e2:
-            log(f"Could not initialize robot articulation with either API: {e2}")
-            import traceback
             traceback.print_exc()
-            
-            # Run without control if we couldn't access the articulation
-            log("Running simulation without joint control (visualization only)...")
-            total_steps = 500
-            for step_count in range(total_steps):
-                simulation_app.update()
-                if step_count % 100 == 0:
-                    log(f"Step {step_count}/{total_steps}")
-                time.sleep(0.01)
+    else:
+        # Run without control if we couldn't access the articulation
+        log("Running simulation without joint control (visualization only)...")
+        total_steps = 500
+        for step_count in range(total_steps):
+            simulation_app.update()
+            if step_count % 100 == 0:
+                log(f"Step {step_count}/{total_steps}")
+            time.sleep(0.01)
     
     log("Simulation complete")
     simulation_app.close()
