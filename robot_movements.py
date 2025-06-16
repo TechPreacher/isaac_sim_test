@@ -170,16 +170,25 @@ class RobotMovements:
                         home_position[3] = -0.5  # Often the fourth joint is another elbow
             
             # Apply the home position with velocity control
-            self._apply_position_with_velocity_control(home_position)
+            # Use direct robot joint position setting for Isaac Sim 4.5.0
+            if hasattr(self.robot, 'set_joint_positions'):
+                self.robot.set_joint_positions(home_position)
+            else:
+                self._apply_position_with_velocity_control(home_position)
+                
             return home_position
         except Exception as e:
             print(f"Error in move_to_home_position: {e}")
             # If there's an error, try a simpler approach with all zeros
             try:
                 simple_home = np.zeros(self.num_joints)
-                self._apply_position_with_velocity_control(simple_home)
+                if hasattr(self.robot, 'set_joint_positions'):
+                    self.robot.set_joint_positions(simple_home)
+                else:
+                    self._apply_position_with_velocity_control(simple_home)
                 return simple_home
-            except:
+            except Exception as e2:
+                print(f"Failed to apply home position: {e2}")
                 return self.get_current_joint_positions()
     
     def move_joints_incrementally(self, increments):
@@ -220,8 +229,12 @@ class RobotMovements:
                 self.joint_upper_limits
             )
             
-            # Apply the new positions with velocity control
-            self._apply_position_with_velocity_control(new_positions)
+            # Apply the new positions with velocity control or directly
+            if hasattr(self.robot, 'set_joint_positions'):
+                self.robot.set_joint_positions(new_positions)
+            else:
+                self._apply_position_with_velocity_control(new_positions)
+                
             return new_positions
         except Exception as e:
             print(f"Error in move_joints_incrementally: {e}")
@@ -256,13 +269,24 @@ class RobotMovements:
                 self.controller.set_velocity_limits(velocities)
             
             # Apply the position target directly
-            self.controller.apply_action(target_positions)
+            # In Isaac Sim 4.5.0, we need to use set_joint_positions instead of apply_action
+            if hasattr(self.robot, 'set_joint_positions'):
+                self.robot.set_joint_positions(target_positions)
+            elif hasattr(self.controller, 'apply_action'):
+                self.controller.apply_action(target_positions)
             
         except Exception as e:
             print(f"Error in _apply_position_with_velocity_control: {e}")
             # Fallback to direct action without velocity control
             try:
-                self.controller.apply_action(target_positions)
+                if hasattr(self.robot, 'set_joint_positions'):
+                    self.robot.set_joint_positions(target_positions)
+                elif hasattr(self.robot, 'apply_joint_positions'):
+                    self.robot.apply_joint_positions(target_positions)
+                elif hasattr(self.controller, 'apply_action'):
+                    self.controller.apply_action(target_positions)
+                else:
+                    print("No method found to apply joint positions")
             except Exception as e2:
                 print(f"Failed to apply fallback action: {e2}")
                 # If all else fails, don't try to move the robot
