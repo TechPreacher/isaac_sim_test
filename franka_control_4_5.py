@@ -22,7 +22,7 @@ warnings.filterwarnings('ignore', message='numpy.dtype size changed')
 warnings.filterwarnings('ignore', message='numpy.ufunc size changed')
 
 THIS_FOLDER = Path(__file__).parent.resolve()
-USD_SCENE_PATH = str(THIS_FOLDER / "scenes" / "franka_blocks_manual.usd")
+USD_SCENE_PATH = str(THIS_FOLDER / "scenes" / "franka_room.usd")
 ROBOT_PRIM_PATH = "/World/franka"
 
 def log(message):
